@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>GUSTAVO TEAM</title>
+
+<style>
+body{margin:0;background:#000;color:#fff;font-family:Arial}
+header{background:#111;padding:15px;text-align:center;font-size:22px;font-weight:bold}
+.menu{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:10px;background:#1a1a1a}
+.menu button{background:#222;color:#fff;border:none;padding:10px 15px;border-radius:5px;cursor:pointer}
+.menu button:hover{background:#e50914}
+.searchBox{width:100%;text-align:center;margin-top:5px}
+.searchBox input{width:90%;max-width:400px;padding:10px;border-radius:5px;border:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:15px;padding:15px}
+.card{cursor:pointer}
+.card img{width:100%;border-radius:8px}
+.card p{text-align:center;margin:6px 0 0;font-size:14px}
+#playerBox{display:none;padding:10px}
+iframe,video{width:100%;height:240px;border:none}
+@media(min-width:768px){iframe,video{height:420px}}
+.center{text-align:center;margin-top:10px}
+</style>
+</head>
+
+<body>
+
+<header>🎬 GUSTAVO TEAM</header>
+
+<div class="menu">
+  <button onclick="carregarCatalogo()">Catálogo</button>
+  <button onclick="carregarTV()">TV Ao Vivo</button>
+  <button onclick="voltar()">Voltar</button>
+  <div class="searchBox">
+    <input type="text" id="search" placeholder="Pesquisar filmes ou séries..." onkeyup="pesquisar()">
+  </div>
+</div>
+
+<div id="content" class="grid"></div>
+
+<div id="playerBox">
+  <iframe id="player"></iframe>
+  <div class="center">
+    <button onclick="voltar()">Voltar</button>
+  </div>
+</div>
+
+<script>
+// ====== CONFIG ======
+const API_KEY = "df0a87abacb48d6e300bfec67aa39c79";
+
+// ====== ELEMENTOS ======
+const content = document.getElementById("content");
+const playerBox = document.getElementById("playerBox");
+const player = document.getElementById("player");
+const searchInput = document.getElementById("search");
+
+// ====== CATÁLOGO (FILMES + SÉRIES JUNTOS) ======
+async function carregarCatalogo(){
+  searchInput.value="";
+  content.innerHTML="";
+  playerBox.style.display="none";
+  content.style.display="grid";
+
+  const r = await fetch(
+    `https://api.themoviedb.org/3/trending/all/week?api_key=${API_KEY}&language=pt-BR`
+  );
+  const d = await r.json();
+
+  mostrarLista(d.results);
+}
+
+// ====== PESQUISA ======
+async function pesquisar(){
+  const q = searchInput.value.trim();
+  if(q.length < 2){carregarCatalogo();return;}
+
+  const r = await fetch(
+    `https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&language=pt-BR&query=${encodeURIComponent(q)}`
+  );
+  const d = await r.json();
+
+  mostrarLista(d.results);
+}
+
+// ====== MOSTRAR LISTA ======
+function mostrarLista(lista){
+  content.innerHTML="";
+  lista.forEach(i=>{
+    if(!i.poster_path) return;
+    const nome = i.title || i.name;
+    if(!nome) return;
+
+    content.innerHTML += `
+      <div class="card" onclick="abrirTrailer(${i.id},'${i.media_type}')">
+        <img src="https://image.tmdb.org/t/p/w500${i.poster_path}">
+        <p>${nome}</p>
+      </div>
+    `;
+  });
+}
+
+// ====== TRAILER ======
+async function abrirTrailer(id,tipo){
+  const r = await fetch(
+    `https://api.themoviedb.org/3/${tipo}/${id}/videos?api_key=${API_KEY}&language=pt-BR`
+  );
+  const d = await r.json();
+
+  const t = d.results.find(v=>v.site==="YouTube");
+  if(!t){alert("Trailer não disponível");return;}
+
+  content.style.display="none";
+  playerBox.style.display="block";
+  player.src=`https://www.youtube.com/embed/${t.key}?autoplay=1`;
+}
+
+// ====== TV AO VIVO ======
+function carregarTV(){
+  searchInput.value="";
+  content.innerHTML="";
+  playerBox.style.display="none";
+  content.style.display="grid";
+
+  const canais = [
+    {
+      nome:"TV Brasil (Ao Vivo)",
+      img:"https://i.imgur.com/8QZ4FzF.png",
+      tipo:"player",
+      link:"https://tvbrasil-stream.ebc.com.br/index.m3u8"
+    },
+    {
+      nome:"Globo",
+      img:"https://i.imgur.com/1Q9Z1ZQ.png",
+      tipo:"link",
+      link:"https://globoplay.globo.com/ao-vivo/"
+    },
+    {
+      nome:"SBT",
+      img:"https://i.imgur.com/5G6XQYh.png",
+      tipo:"link",
+      link:"https://www.sbt.com.br/ao-vivo"
+    },
+    {
+      nome:"Band",
+      img:"https://i.imgur.com/W5yJmZK.png",
+      tipo:"link",
+      link:"https://www.band.uol.com.br/ao-vivo"
+    }
+  ];
+
+  canais.forEach(c=>{
+    content.innerHTML += `
+      <div class="card" onclick="abrirCanal('${c.tipo}','${c.link}')">
+        <img src="${c.img}">
+        <p>${c.nome}</p>
+      </div>
+    `;
+  });
+}
+
+function abrirCanal(tipo,link){
+  if(tipo==="player"){
+    content.style.display="none";
+    playerBox.style.display="block";
+    player.src=link;
+  }else{
+    window.open(link,"_blank");
+  }
+}
+
+// ====== VOLTAR ======
+function voltar(){
+  player.src="";
+  playerBox.style.display="none";
+  content.style.display="grid";
+}
+
+// ====== AUTO ======
+carregarCatalogo();
+</script>
+
+</body>
+</html>
